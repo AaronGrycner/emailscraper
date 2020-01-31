@@ -15,6 +15,7 @@ html = driver.page_source
 soup = BeautifulSoup(html, "html.parser")
 
 userlist = []
+emailchars = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz."
 
 # this code determines whether we are scraping instagram or twitter and handles which piece of HTML to use.
 # it also sets the variable 'currentSite' to indicate which site we are scraping for later use.
@@ -28,7 +29,7 @@ else:
 
 # function to find the email in the bio section of the instagram page and append it to a text file
 def findemail(htmltext):
-    emailchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz."
+
     htmltext = str(htmltext)
     print(htmltext)
     if "@" in htmltext:
@@ -50,7 +51,6 @@ def findemail(htmltext):
                 i = 2
     else:
         return
-
 
     f = open('emails.txt', 'a')
     f.write(str(user) + '\n')
@@ -149,7 +149,6 @@ def getfollowerstwitter():
 
     linkstring = ""
 
-    SCROLL_PAUSE_TIME = 0.5
     WebDriverWait(driver, timeout=1000).until(url_changes)
     # Get scroll height
     last_height = driver.execute_script("return document.body.scrollHeight")
@@ -158,7 +157,7 @@ def getfollowerstwitter():
         driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
 
         # Wait to load page
-        time.sleep(SCROLL_PAUSE_TIME)
+        time.sleep(1)
 
         # get follower list
         html4 = driver.page_source
@@ -172,18 +171,38 @@ def getfollowerstwitter():
             break
         last_height = new_height
 
-    # creates list of usernames from slices of linkstring
-    while True:
+    # creates list of emails from linkstring and slices it until there are no more left
+    print(linkstring)
+    y = 0
+    while y == 0:
         link = ""
         atsignindex = linkstring.find("@")
+        originalindex = atsignindex
         if "@" not in linkstring:
-            break
-        elif str(linkstring[atsignindex - 1]).isalpha():
-            userlist.append(link)
+            y = 1
+        # this checks to see if the @ sign IS part of an email address and adds the email address to userlist
+        elif str(linkstring[atsignindex - 1]) in emailchars:
+            # this stores the original index of the @ sign
+            x = 0
+            while x == 0:
+                link = link + linkstring[atsignindex]
+                atsignindex = atsignindex + 1
+                if not str(linkstring[atsignindex]) in emailchars:
+                    x = 1
+            atsignindex = originalindex - 1
+            while x == 1:
+                link = linkstring[atsignindex] + link
+                atsignindex = atsignindex - 1
+                if not str(linkstring[atsignindex]) in emailchars:
+                    x = 0
+            if link not in userlist:
+                userlist.append(link)
+            atsignindex = originalindex
+            linkstring = linkstring[atsignindex + 1:]
         else:
-            linkstring = linkstring[atsignindex:]
-    print("LINKSTRING = " + linkstring)
-    print(userlist)
+            atsignindex = originalindex
+            linkstring = linkstring[atsignindex + 1:]
+
 
 
 if currentSite == "instagram":
@@ -194,8 +213,12 @@ if currentSite == "instagram":
         soup4 = BeautifulSoup(html4, "html.parser")
         searchHtml = soup4.find_all("div", class_="-vDIg")
         findemail(searchHtml)
+    print(userlist)
 elif currentSite == "twitter":
     getfollowerstwitter()
-
-
-
+    for user in userlist:
+        f = open('emails.txt', 'a')
+        f.write(str(user) + '\n')
+        # f.write(str(email) + '\n')
+        f.close()
+    print(userlist)
